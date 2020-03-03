@@ -14,6 +14,7 @@ namespace SpaceEngineers.Flight
     public class AutoPilot : MyGridProgram
     {
         List<IMyThrust> controlledThrusters = new List<IMyThrust>();
+        List<IMyShipConnector> shipConnectors = new List<IMyShipConnector>();
         IMyShipConnector connector;
         VRage.Game.ModAPI.Ingame.IMyCubeGrid grid;
         long lastTime;
@@ -22,15 +23,24 @@ namespace SpaceEngineers.Flight
         public AutoPilot()
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update100;
+            grid = Me.CubeGrid;
 
-            Runtime.UpdateFrequency = UpdateFrequency.Update100;
-            connector = GridTerminalSystem.GetBlockWithName("MM Connector") as IMyShipConnector;
-            grid = connector.CubeGrid;
+            List<IMyShipConnector> allConnectors = new List<IMyShipConnector>();
+            GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(allConnectors);
+            Echo("Me.CubeGrid=" + grid.Name);
+            foreach(IMyShipConnector connector in allConnectors)
+            {
+                Echo("connector.CubeGrid=" + connector.CubeGrid);
+                if (connector.CubeGrid.IsSameConstructAs(grid))
+                {
+                    shipConnectors.Add(connector);
+                }
+            }
         }
 
         public void Main()
         {
-            if (connector.Status == MyShipConnectorStatus.Connected)
+            if (ConnectorsLocked(shipConnectors)
             {
                 // return;
             }
@@ -72,6 +82,19 @@ namespace SpaceEngineers.Flight
                 MySprite displayText = MySprite.CreateText(message, "Debug", new Color(1f), 2f, TextAlignment.CENTER);
                 frame.Add(displayText);
             }
+        }
+
+        private bool ConnectorsLocked(List<IMyShipConnector> connectors)
+        {
+            foreach (IMyShipConnector connector in connectors)
+            {
+                if (connector.Status != MyShipConnectorStatus.Connected)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 }
