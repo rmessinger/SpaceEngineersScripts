@@ -16,19 +16,24 @@ namespace SpaceEngineers.Flight
         List<IMyThrust> controlledThrusters = new List<IMyThrust>();
         List<IMyShipConnector> shipConnectors = new List<IMyShipConnector>();
         VRage.Game.ModAPI.Ingame.IMyCubeGrid shipGrid;
+        IMyCockpit shipCockpit;
+
         System.DateTime lastTime;
         Vector3D lastPosition;
-        double maxSpeed;
+        float maxX, maxY;
         float cruiseSpeed;
         float minSpeed;
+        bool enabled;
 
         public AutoPilot()
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update100;
             shipGrid = Me.CubeGrid;
-            maxSpeed = 0;
             cruiseSpeed = 105;
             minSpeed = 40;
+            maxX = 0;
+            maxY = 0;
+            enabled = false;
 
             List<IMyShipConnector> allConnectors = new List<IMyShipConnector>();
             GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(allConnectors);
@@ -39,13 +44,24 @@ namespace SpaceEngineers.Flight
                     shipConnectors.Add(connector);
                 }
             }
+
+            List<IMyCockpit> allCockpits = new List<IMyCockpit>();
+            GridTerminalSystem.GetBlocksOfType<IMyCockpit>(allCockpits);
+            foreach(IMyCockpit cockpit in allCockpits)
+            {
+                if (cockpit.CubeGrid.IsSameConstructAs(shipGrid))
+                {
+                    this.shipCockpit = cockpit;
+                    break;
+                }
+            }
         }
 
         public void Main()
         {
             if (ConnectorsLocked(shipConnectors))
             {
-                return;
+                // return;
             }
             else if (controlledThrusters.Count == 0)
             {
@@ -59,19 +75,49 @@ namespace SpaceEngineers.Flight
             lastTime = now;
             lastPosition = shipGrid.GetPosition();
 
-            if (velocity > maxSpeed)
+            float xVel = shipCockpit.MoveIndicator.X;
+            float yVel = shipCockpit.MoveIndicator.Y;
+            bool stop = false;
+
+            if (xVel < maxX)
             {
-                maxSpeed = velocity;
+                maxX = xVel;
+            }
+            if (yVel < maxY)
+            {
+                maxY = yVel;
             }
 
             float target = 0;
-            if (velocity > minSpeed)
+            if (shipCockpit.MoveIndicator.X < 0 || shipCockpit.MoveIndicator.Y < 0)
             {
-                target = SetThrusters(velocity);
+                if (enabled == true)
+                {
+                    stop = true;
+                }
+
+                Echo("Disabling: X=" + shipCockpit.MoveIndicator.X + ", Y=" + shipCockpit.MoveIndicator.Y);
+                enabled = false;
+            }
+            else if (velocity > minSpeed && (shipCockpit.MoveIndicator.X > 0 ||
+                                             shipCockpit.MoveIndicator.Y > 0))
+            {
+                enabled = true;
             }
 
+            if (enabled)
+            {
+                Echo("Enabling");
+                target = SetThrusters(velocity);
+            }
+            else if (stop)
+            {
+                ResetThrustOverride();
+            }
+
+            Echo($"Enabled={enabled} Stop={stop} x={shipCockpit.MoveIndicator.X} y={shipCockpit.MoveIndicator.Y}");
             StringBuilder displayText = new StringBuilder();
-            displayText.Append($"Set speed:\n{Math.Round(target, 3)}");
+            displayText.Append($"Max X:\n{Math.Round(target, 3)}\nMax Y:\n{Math.Round(target, 3)}");
             // displayText.Append($"X: {lastPosition.X}\nY: {lastPosition.Y}\nZ: {lastPosition.Z}");
             WriteToLCD(displayText.ToString());
         }
@@ -88,7 +134,7 @@ namespace SpaceEngineers.Flight
                     && thruster.CubeGrid.IsSameConstructAs(shipGrid))
                 {
                     controlledThrusters.Add(thruster);
-                    Echo(thruster.CustomName);
+                    // Echo(thruster.CustomName);
                 }
             }
         }
@@ -103,6 +149,14 @@ namespace SpaceEngineers.Flight
             }
 
             return thrustPercentage;
+        }
+
+        public void ResetThrustOverride()
+        {
+            foreach (IMyThrust thruster in controlledThrusters)
+            {
+                thruster.ThrustOverridePercentage = 0;
+            }
         }
 
         public void WriteToLCD(string message)
