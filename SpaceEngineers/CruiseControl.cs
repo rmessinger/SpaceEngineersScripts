@@ -157,7 +157,6 @@ namespace SpaceEngineers.Utilities
                 }
             }
 
-
             return $"Enabled:{enabled}\nDisabled:{disabled}";
         }
 
