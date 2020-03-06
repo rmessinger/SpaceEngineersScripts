@@ -27,7 +27,7 @@ namespace SpaceEngineers.Flight
 
         public AutoPilot()
         {
-            Runtime.UpdateFrequency = UpdateFrequency.Update100;
+            Runtime.UpdateFrequency = UpdateFrequency.Update10;
             shipGrid = Me.CubeGrid;
             cruiseSpeed = 105;
             minSpeed = 40;
@@ -71,6 +71,7 @@ namespace SpaceEngineers.Flight
             DateTime now = DateTime.Now;
             Vector3D position = shipGrid.GetPosition();
             double velocity = CalculateVelocity(lastPosition, position, lastTime, now);
+            StringBuilder displayText = new StringBuilder();
 
             lastTime = now;
             lastPosition = shipGrid.GetPosition();
@@ -89,20 +90,23 @@ namespace SpaceEngineers.Flight
             }
 
             float target = 0;
-            if (shipCockpit.MoveIndicator.X < 0 || shipCockpit.MoveIndicator.Y < 0)
-            {
+            if (shipCockpit.MoveIndicator.Z == 1)
+            { 
                 if (enabled == true)
                 {
                     stop = true;
                 }
 
-                Echo("Disabling: X=" + shipCockpit.MoveIndicator.X + ", Y=" + shipCockpit.MoveIndicator.Y);
                 enabled = false;
             }
-            else if (velocity > minSpeed && (shipCockpit.MoveIndicator.X > 0 ||
-                                             shipCockpit.MoveIndicator.Y > 0))
+            else if (velocity > minSpeed && shipCockpit.MoveIndicator.Z == -1)
             {
+                // WriteToLCD("Debug Panel 2", "Enabling", displayText.ToString());
                 enabled = true;
+            }
+            else if (velocity < minSpeed)
+            {
+                enabled = false;
             }
 
             if (enabled)
@@ -115,11 +119,14 @@ namespace SpaceEngineers.Flight
                 ResetThrustOverride();
             }
 
+            displayText.Append(enabled ? "Enabled\n" : "Disabled\n");
+            displayText.Append($"X:{Math.Round(shipCockpit.MoveIndicator.X, 3)} ");
+            displayText.Append($"Y:{Math.Round(shipCockpit.MoveIndicator.Y, 3)} ");
+            displayText.Append($"Z:{Math.Round(shipCockpit.MoveIndicator.Z, 3)} ");
+            displayText.Append($"\nV:{ Math.Round(velocity, 3)}");
+            WriteToLCD("Debug Panel 1", displayText.ToString());
             Echo($"Enabled={enabled} Stop={stop} x={shipCockpit.MoveIndicator.X} y={shipCockpit.MoveIndicator.Y}");
-            StringBuilder displayText = new StringBuilder();
-            displayText.Append($"Max X:\n{Math.Round(target, 3)}\nMax Y:\n{Math.Round(target, 3)}");
             // displayText.Append($"X: {lastPosition.X}\nY: {lastPosition.Y}\nZ: {lastPosition.Z}");
-            WriteToLCD(displayText.ToString());
         }
 
         public void InitializeThrusters()
@@ -159,18 +166,6 @@ namespace SpaceEngineers.Flight
             }
         }
 
-        public void WriteToLCD(string message)
-        {
-            IMyTextSurface surface;
-            surface = GridTerminalSystem.GetBlockWithName("MM Panel") as IMyTextSurface;
-            surface.ContentType = ContentType.SCRIPT;
-            using (var frame = surface.DrawFrame())
-            {
-                MySprite displayText = MySprite.CreateText(message, "Debug", new Color(1f), 2f, TextAlignment.CENTER);
-                frame.Add(displayText);
-            }
-        }
-
         private bool ConnectorsLocked(List<IMyShipConnector> connectors)
         {
             foreach (IMyShipConnector connector in connectors)
@@ -193,6 +188,20 @@ namespace SpaceEngineers.Flight
             double distance = Math.Sqrt(Math.Pow(xDistance, 2) + Math.Pow(yDistance, 2) + Math.Pow(zDistance, 2));
 
             return distance / elapsed;
+        }
+
+        public void WriteToLCD(string panelName, string message)
+        {
+            IMyTextPanel panel;
+            panel = GridTerminalSystem.GetBlockWithName(panelName) as IMyTextPanel;
+            panel.ContentType = ContentType.TEXT_AND_IMAGE;
+            panel.BackgroundColor = new Color(0f);
+            panel.WriteText(message);
+            // using (var frame = surface.DrawFrame())
+            // {
+            //     MySprite displayText = MySprite.CreateText(message, "Debug", new Color(1f), 2f, TextAlignment.LEFT);
+            //     frame.Add(displayText);
+            // }
         }
     }
 }
