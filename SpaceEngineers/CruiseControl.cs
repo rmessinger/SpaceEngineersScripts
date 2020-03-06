@@ -1,38 +1,33 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
-using Sandbox.Common;
 using Sandbox.ModAPI.Ingame;
-using VRage.Game;
-using VRage.Game.Components;
 using VRage.Game.GUI.TextPanel;
-using VRage.Game.ModAPI;
+using VRage.Game.ModAPI.Ingame;
 using VRageMath;
 
-namespace SpaceEngineers.Flight
+namespace SpaceEngineers.Utilities
 {
-    public class AutoPilot : MyGridProgram
+    public class CruiseControl : MyGridProgram
     {
-        List<IMyThrust> controlledThrusters = new List<IMyThrust>();
-        List<IMyShipConnector> shipConnectors = new List<IMyShipConnector>();
-        VRage.Game.ModAPI.Ingame.IMyCubeGrid shipGrid;
+        ISet<IMyThrust> forwardThrusters = new HashSet<IMyThrust>();
+        ISet<IMyThrust> reverseThrusters = new HashSet<IMyThrust>();
+        ISet<IMyShipConnector> shipConnectors = new HashSet<IMyShipConnector>();
+        IMyCubeGrid shipGrid;
         IMyCockpit shipCockpit;
 
         System.DateTime lastTime;
         Vector3D lastPosition;
-        float maxX, maxY;
         float cruiseSpeed;
         float minSpeed;
         bool enabled;
 
-        public AutoPilot()
+        public CruiseControl()
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
             shipGrid = Me.CubeGrid;
             cruiseSpeed = 105;
             minSpeed = 40;
-            maxX = 0;
-            maxY = 0;
             enabled = false;
 
             List<IMyShipConnector> allConnectors = new List<IMyShipConnector>();
@@ -55,17 +50,15 @@ namespace SpaceEngineers.Flight
                     break;
                 }
             }
+
+            InitializeThrusters();
         }
 
         public void Main()
         {
             if (ConnectorsLocked(shipConnectors))
             {
-                // return;
-            }
-            else if (controlledThrusters.Count == 0)
-            {
-                InitializeThrusters();
+                return;
             }
 
             DateTime now = DateTime.Now;
@@ -76,20 +69,10 @@ namespace SpaceEngineers.Flight
             lastTime = now;
             lastPosition = shipGrid.GetPosition();
 
-            float xVel = shipCockpit.MoveIndicator.X;
-            float yVel = shipCockpit.MoveIndicator.Y;
             bool stop = false;
 
-            if (xVel < maxX)
-            {
-                maxX = xVel;
-            }
-            if (yVel < maxY)
-            {
-                maxY = yVel;
-            }
-
             float target = 0;
+
             if (shipCockpit.MoveIndicator.Z == 1)
             { 
                 if (enabled == true)
@@ -101,17 +84,21 @@ namespace SpaceEngineers.Flight
             }
             else if (velocity > minSpeed && shipCockpit.MoveIndicator.Z == -1)
             {
-                // WriteToLCD("Debug Panel 2", "Enabling", displayText.ToString());
                 enabled = true;
             }
             else if (velocity < minSpeed)
             {
+                if (enabled == true)
+                {
+                    stop = true;
+                }
+
                 enabled = false;
             }
 
             if (enabled)
             {
-                Echo("Enabling");
+                DisableReverseThrusters();
                 target = SetThrusters(velocity);
             }
             else if (stop)
@@ -122,35 +109,71 @@ namespace SpaceEngineers.Flight
             displayText.Append(enabled ? "Enabled\n" : "Disabled\n");
             displayText.Append($"X:{Math.Round(shipCockpit.MoveIndicator.X, 3)} ");
             displayText.Append($"Y:{Math.Round(shipCockpit.MoveIndicator.Y, 3)} ");
-            displayText.Append($"Z:{Math.Round(shipCockpit.MoveIndicator.Z, 3)} ");
-            displayText.Append($"\nV:{ Math.Round(velocity, 3)}");
+            displayText.Append($"Z:{Math.Round(shipCockpit.MoveIndicator.Z, 3)}\n");
+            displayText.Append($"V:{ Math.Round(velocity, 3)}\n");
+            displayText.Append($"T:{ Math.Round(target, 3)}");
+
             WriteToLCD("Debug Panel 1", displayText.ToString());
-            Echo($"Enabled={enabled} Stop={stop} x={shipCockpit.MoveIndicator.X} y={shipCockpit.MoveIndicator.Y}");
-            // displayText.Append($"X: {lastPosition.X}\nY: {lastPosition.Y}\nZ: {lastPosition.Z}");
+            WriteToLCD("Debug Panel 2", GetReverseStatus());
         }
 
-        public void InitializeThrusters()
+        private void InitializeThrusters()
         {
             List<IMyThrust> thrusters = new List<IMyThrust>();
             GridTerminalSystem.GetBlocksOfType<IMyThrust>(thrusters);
 
             foreach (IMyThrust thruster in thrusters)
             {
-                // Echo(thruster.GridThrustDirection.Equals(VRageMath.Vector3I.Forward).ToString());
-                if (thruster.GridThrustDirection.Equals(VRageMath.Vector3I.Backward)
-                    && thruster.CubeGrid.IsSameConstructAs(shipGrid))
+                if (thruster.CubeGrid.IsSameConstructAs(shipGrid))
                 {
-                    controlledThrusters.Add(thruster);
-                    // Echo(thruster.CustomName);
+                    // Thrustdirection of backward means the ship will move forward
+                    if (thruster.GridThrustDirection.Equals(VRageMath.Vector3I.Backward))
+                    {
+                        forwardThrusters.Add(thruster);
+                    }
+                    else if (thruster.GridThrustDirection.Equals(VRageMath.Vector3I.Forward))
+                    {
+                        reverseThrusters.Add(thruster);
+                    }
                 }
             }
         }
 
-        public float SetThrusters(double velocity)
+        private string GetReverseStatus()
         {
-            float thrustPercentage = 1 - (Math.Max(0, 85 - (float)velocity) / cruiseSpeed);
+            int enabled = 0;
+            int disabled = 0;
 
-            foreach(IMyThrust thruster in controlledThrusters)
+            foreach (IMyThrust thruster in reverseThrusters)
+            {
+                if (thruster.Enabled)
+                {
+                    enabled++;
+                }
+                else
+                {
+                    disabled++;
+                }
+            }
+
+
+            return $"Enabled:{enabled}\nDisabled:{disabled}";
+        }
+
+        private void DisableReverseThrusters()
+        {
+            foreach (IMyThrust thruster in reverseThrusters)
+            {
+                thruster.Enabled = false;
+            }
+        }
+
+        private float SetThrusters(double velocity)
+        {
+            // Stalls around 20% thrust - apparently the amount required to maintain 80ish m/s
+            float thrustPercentage = 1 - ((float)velocity / cruiseSpeed);
+
+            foreach(IMyThrust thruster in forwardThrusters)
             {
                 thruster.ThrustOverridePercentage = thrustPercentage;
             }
@@ -158,15 +181,21 @@ namespace SpaceEngineers.Flight
             return thrustPercentage;
         }
 
-        public void ResetThrustOverride()
+        // TODO this needs to somehow be called on deactivation of block
+        private void ResetThrustOverride()
         {
-            foreach (IMyThrust thruster in controlledThrusters)
+            foreach (IMyThrust thruster in forwardThrusters)
             {
                 thruster.ThrustOverridePercentage = 0;
             }
+
+            foreach(IMyThrust thruster in reverseThrusters)
+            {
+                thruster.Enabled = true;
+            }
         }
 
-        private bool ConnectorsLocked(List<IMyShipConnector> connectors)
+        private bool ConnectorsLocked(ISet<IMyShipConnector> connectors)
         {
             foreach (IMyShipConnector connector in connectors)
             {
@@ -185,23 +214,21 @@ namespace SpaceEngineers.Flight
             double xDistance = endPosition.X - startPosition.X;
             double yDistance = endPosition.Y - startPosition.Y;
             double zDistance = endPosition.Z - startPosition.Z;
+            // pow!
             double distance = Math.Sqrt(Math.Pow(xDistance, 2) + Math.Pow(yDistance, 2) + Math.Pow(zDistance, 2));
 
             return distance / elapsed;
         }
 
-        public void WriteToLCD(string panelName, string message)
+        private void WriteToLCD(string panelName, string message)
         {
             IMyTextPanel panel;
             panel = GridTerminalSystem.GetBlockWithName(panelName) as IMyTextPanel;
             panel.ContentType = ContentType.TEXT_AND_IMAGE;
+
+            // 0f is black
             panel.BackgroundColor = new Color(0f);
             panel.WriteText(message);
-            // using (var frame = surface.DrawFrame())
-            // {
-            //     MySprite displayText = MySprite.CreateText(message, "Debug", new Color(1f), 2f, TextAlignment.LEFT);
-            //     frame.Add(displayText);
-            // }
         }
     }
 }
