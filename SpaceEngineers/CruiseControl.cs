@@ -133,6 +133,7 @@ namespace SpaceEngineers.Utilities
                     }
                     else if (thruster.GridThrustDirection.Equals(VRageMath.Vector3I.Forward))
                     {
+                        // TODO filter hydrogen thrusters when in gravity well
                         reverseThrusters.Add(thruster);
                     }
                 }
