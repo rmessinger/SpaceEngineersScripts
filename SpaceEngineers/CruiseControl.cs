@@ -18,16 +18,18 @@ namespace SpaceEngineers.Utilities
 
         System.DateTime lastTime;
         Vector3D lastPosition;
-        float cruiseSpeed;
+        float cruiseTarget;
         float minSpeed;
+        float lowerCruiseBound;
         bool enabled;
 
         public CruiseControl()
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
             shipGrid = Me.CubeGrid;
-            cruiseSpeed = 105;
-            minSpeed = 40;
+            cruiseTarget = 105;
+            lowerCruiseBound = 95;
+            minSpeed = 75;
             enabled = false;
 
             List<IMyShipConnector> allConnectors = new List<IMyShipConnector>();
@@ -63,7 +65,7 @@ namespace SpaceEngineers.Utilities
 
             DateTime now = DateTime.Now;
             Vector3D position = shipGrid.GetPosition();
-            double velocity = CalculateVelocity(lastPosition, position, lastTime, now);
+            float velocity = CalculateVelocity(lastPosition, position, lastTime, now);
             StringBuilder displayText = new StringBuilder();
 
             lastTime = now;
@@ -131,7 +133,8 @@ namespace SpaceEngineers.Utilities
                     {
                         forwardThrusters.Add(thruster);
                     }
-                    else if (thruster.GridThrustDirection.Equals(VRageMath.Vector3I.Forward))
+                    else if (thruster.GridThrustDirection.Equals(VRageMath.Vector3I.Forward) &&
+                        thruster.CustomName.Contains("Atmo"))
                     {
                         // TODO filter hydrogen thrusters when in gravity well
                         reverseThrusters.Add(thruster);
@@ -168,10 +171,11 @@ namespace SpaceEngineers.Utilities
             }
         }
 
-        private float SetThrusters(double velocity)
+        private float SetThrusters(float velocity)
         {
             // Stalls around 20% thrust - apparently the amount required to maintain 80ish m/s
-            float thrustPercentage = 1 - ((float)velocity / cruiseSpeed);
+            float newPercentage = 1 - (velocity - lowerCruiseBound) / (cruiseTarget - lowerCruiseBound);
+            float thrustPercentage = velocity > lowerCruiseBound ? newPercentage : 1;
 
             foreach(IMyThrust thruster in forwardThrusters)
             {
@@ -208,7 +212,7 @@ namespace SpaceEngineers.Utilities
             return true;
         }
 
-        private double CalculateVelocity(Vector3D startPosition, Vector3D endPosition, DateTime startTime, DateTime endTime)
+        private float CalculateVelocity(Vector3D startPosition, Vector3D endPosition, DateTime startTime, DateTime endTime)
         {
             double elapsed = (endTime - startTime).TotalSeconds;
             double xDistance = endPosition.X - startPosition.X;
@@ -217,7 +221,7 @@ namespace SpaceEngineers.Utilities
             // pow!
             double distance = Math.Sqrt(Math.Pow(xDistance, 2) + Math.Pow(yDistance, 2) + Math.Pow(zDistance, 2));
 
-            return distance / elapsed;
+            return (float)(distance / elapsed);
         }
 
         private void WriteToLCD(string panelName, string message)
