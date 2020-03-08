@@ -39,6 +39,7 @@ namespace Utilities
             refineries = FindRefineries();
             assemblers = FindAssemblers();
 
+            ingotTypes = new Dictionary<string, MyItemType>();
             ingotTypes.Add("Iron", MyItemType.MakeIngot("Iron"));
             ingotTypes.Add("Cobalt", MyItemType.MakeIngot("Cobalt"));
         }
@@ -47,17 +48,23 @@ namespace Utilities
         {
 
             float ironIngotCount = 0;
+            float cobaltIngotCount = 0;
             // TODO this shouldn't be 3 loops... they all have base types don't they
             foreach (IMyCargoContainer container in cargoContainers)
             {
                 // TODO cache these
                 IMyInventory containerInventory = container.GetInventory();
-                MyInventoryItem? ironIngots = containerInventory.FindItem(MyItemType.MakeIngot("Iron"));
+                MyInventoryItem? ironIngots = containerInventory.FindItem(ingotTypes["Iron"]);
+                MyInventoryItem? cobaltIngots = containerInventory.FindItem(ingotTypes["Cobalt"]);
 
+                // refactor into method
                 if (ironIngots != null)
                 {
-                    Echo("Cargo: adding " + (float)ironIngots?.Amount.RawValue / 1000000000f);
                     ironIngotCount += (float)ironIngots?.Amount.RawValue / 1000000000f;
+                }
+                if (cobaltIngots != null)
+                {
+                    cobaltIngotCount += (float)cobaltIngots?.Amount.RawValue / 1000000000f;
                 }
             }
 
@@ -65,12 +72,16 @@ namespace Utilities
             {
                 // TODO cache these
                 IMyInventory refineryInventory = refinery.OutputInventory;
-                MyInventoryItem? ironIngots = refineryInventory.FindItem(MyItemType.MakeIngot("Iron"));
+                MyInventoryItem? ironIngots = refineryInventory.FindItem(ingotTypes["Iron"]);
+                MyInventoryItem? cobaltIngots = refineryInventory.FindItem(ingotTypes["Cobalt"]);
 
                 if (ironIngots != null)
                 {
-                    Echo("Refinery: adding " + (float)ironIngots?.Amount.RawValue / 1000000000f);
                     ironIngotCount += (float)ironIngots?.Amount.RawValue / 1000000000f;
+                }
+                if (cobaltIngots != null)
+                {
+                    cobaltIngotCount += (float)cobaltIngots?.Amount.RawValue / 1000000000f;
                 }
             }
 
@@ -78,16 +89,21 @@ namespace Utilities
             {
                 // TODO cache these
                 IMyInventory assemblerInventory = assembler.InputInventory;
-                MyInventoryItem? ironIngots = assemblerInventory.FindItem(MyItemType.MakeIngot("Iron"));
+                MyInventoryItem? ironIngots = assemblerInventory.FindItem(ingotTypes["Iron"]);
+                MyInventoryItem? cobaltIngots = assemblerInventory.FindItem(ingotTypes["Cobalt"]);
 
                 if (ironIngots != null)
                 {
-                    Echo("Assembler: adding " + (float)ironIngots?.Amount.RawValue / 1000000000f);
                     ironIngotCount += (float)ironIngots?.Amount.RawValue / 1000000000f;
+                }
+                if (cobaltIngots != null)
+                {
+                    cobaltIngotCount += (float)cobaltIngots?.Amount.RawValue / 1000000000f;
                 }
             }
 
-            inventoryDisplay.WriteText("Iron Ingots: " + Math.Round(ironIngotCount, 3) + "k");
+            inventoryDisplay.WriteText("Iron Ingots: " + Math.Round(ironIngotCount, 3) + "k\n");
+            inventoryDisplay.WriteText("Cobalt Ingots: " + Math.Round(cobaltIngotCount, 3) + "k", true);
         }
 
         // TODO condense these into one
