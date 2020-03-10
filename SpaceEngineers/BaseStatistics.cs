@@ -8,16 +8,18 @@ using VRageMath;
 
 namespace Utilities
 {
-    public class InventoryDisplay : MyGridProgram
+    public class BaseStatistics : MyGridProgram
     {
         IMyCubeGrid baseGrid;
         IMyTextPanel inventoryDisplay;
+        IMyTextPanel capacityDisplay;
         ISet<IMyRefinery> refineries;
         ISet<IMyAssembler> assemblers;
         ISet<IMyCargoContainer> cargoContainers;
         IDictionary<string, MyItemType> ingotTypes;
+        System.Text.RegularExpressions.Regex maxInputRegex;
 
-        public InventoryDisplay()
+        public BaseStatistics()
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update100;
             baseGrid = Me.CubeGrid;
@@ -28,12 +30,17 @@ namespace Utilities
                 if (panel.CustomName == "Inventory Display")
                 {
                     inventoryDisplay = panel;
+                    inventoryDisplay.ContentType = ContentType.TEXT_AND_IMAGE;
+                    inventoryDisplay.BackgroundColor = new Color(0f);
+                }
+                if (panel.CustomName == "Power Display")
+                {
+                    capacityDisplay = panel;
+                    capacityDisplay.ContentType = ContentType.TEXT_AND_IMAGE;
+                    capacityDisplay.BackgroundColor = new Color(0f);
                     break;
                 }
             }
-
-            inventoryDisplay.ContentType = ContentType.TEXT_AND_IMAGE;
-            inventoryDisplay.BackgroundColor = new Color(0f);
 
             cargoContainers = FindCargoContainers();
             refineries = FindRefineries();
@@ -49,6 +56,7 @@ namespace Utilities
 
             float ironIngotCount = 0;
             float cobaltIngotCount = 0;
+            string refineryData = string.Empty;
             // TODO this shouldn't be 3 loops... they all have base types don't they
             foreach (IMyCargoContainer container in cargoContainers)
             {
@@ -75,6 +83,10 @@ namespace Utilities
                 MyInventoryItem? ironIngots = refineryInventory.FindItem(ingotTypes["Iron"]);
                 MyInventoryItem? cobaltIngots = refineryInventory.FindItem(ingotTypes["Cobalt"]);
 
+                if (refineryData == string.Empty)
+                {
+                    refineryData = refinery.DetailedInfo;
+                }
                 if (ironIngots != null)
                 {
                     ironIngotCount += (float)ironIngots?.Amount.RawValue / 1000000000f;
@@ -104,6 +116,7 @@ namespace Utilities
 
             inventoryDisplay.WriteText("Iron Ingots: " + Math.Round(ironIngotCount, 3) + "k\n");
             inventoryDisplay.WriteText("Cobalt Ingots: " + Math.Round(cobaltIngotCount, 3) + "k", true);
+            capacityDisplay.WriteText(refineryData);
         }
 
         // TODO condense these into one
