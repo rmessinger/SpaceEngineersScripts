@@ -56,7 +56,7 @@ namespace SpaceEngineers.Utilities
             InitializeThrusters();
         }
 
-        public void Main()
+        public void Main(string argument, UpdateType updateSource)
         {
             if (ConnectorsLocked(shipConnectors))
             {
