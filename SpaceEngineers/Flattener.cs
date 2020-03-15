@@ -10,12 +10,21 @@ namespace Utilities
 {
     public class Flattener : MyGridProgram
     {
-        IMyMotorAdvancedRotor rotor = null;
+        enum FlatteningState
+        {
+            Unknown,
+            Extending,
+            Rotating
+        }
+
+        IMyMotorAdvancedStator rotor = null;
         ISet<IMyPistonBase> pistons;
         ISet<IMyShipDrill> drills;
+        FlatteningState state;
 
         int minAngle = 180;
-        int maxAngle = 345;
+        int maxAngle = 359;
+        float startingExtension = 0;
 
         public Flattener()
         {
@@ -24,33 +33,173 @@ namespace Utilities
 
         public void Main(string argument, UpdateType updateSource)
         {
-            if (rotor == null)
+            if (rotor == null && !findRotor())
             {
-                rotor = findRotor();
+                Echo("No rotor found");
+                return;
             }
 
+            if ((pistons == null && pistons.Count == 0) && !findPistons())
+            {
+                Echo("No pistons found");
+                return;
+            }
 
+            // Is the motor in action?
+            if (rotor.RotorLock || !rotor.IsWorking || rotor.TargetVelocityRPM == 0)
+            {
+                Echo("ROTOR SEEMS DISABLED I GUESS?!");
+                return;
+            }
+
+            // If state is unknown, well, HOW DID I GET HERE
+            // AND THE DAYS GO BY
+            if (state == FlatteningState.Unknown)
+            {
+                // determine what angle the rotor is turning
+                // positive vel rpm means it's returning to home
+                // hey, don't be ignorant. Negative vel can mean home too
+                if (rotor.Angle <= minAngle || rotor.Angle >= maxAngle)
+                {
+                }
+                else if (getPistonVelocity() != 0)
+                {
+                    // if the state is unknown and the pistons are moving, then sweet jesus stop it right now
+                    setPistonVelocity(0);
+                    initiateRotatingState();
+                }
+                else
+                {
+                    // mid-point angle means rotating state
+                    // set it and forget it my dude
+                    state = FlatteningState.Rotating;
+                }
+
+            }
+            else if (state == FlatteningState.Rotating)
+            {
+                // if the rotor has reached the target angle, start extending the pistons
+                if (rotor.TargetVelocityRPM > 0 && rotor.Angle >= maxAngle)
+                {
+
+                }
+            }
+            else if (state == FlatteningState.Extending)
+            {
+                // check current position vs target
+            }
         }
 
-        private IMyMotorAdvancedRotor findRotor()
+        private bool findRotor()
         {
-            IMyMotorAdvancedRotor ret;
-            List<IMyMotorAdvancedRotor> allRotors = new List<IMyMotorAdvancedRotor>();
-            GridTerminalSystem.GetBlocksOfType<IMyMotorAdvancedRotor>(allRotors);
-            foreach(IMyMotorAdvancedRotor rotor in allRotors)
+            IMyTerminalBlock block = GridTerminalSystem.GetBlockWithName("Flattener Rotor");
+            IMyMotorAdvancedStator rotorStatus = block as IMyMotorAdvancedStator;
+            IMyMotorAdvancedRotor rotorControl = block as IMyMotorAdvancedRotor;
+
+            if (rotorStatus == null || rotorControl == null)
             {
-                if (rotor.CubeGrid.IsSameConstructAs(Me.CubeGrid))
+                return false;
+            }
+            else
+            {
+                this.rotor = rotorStatus;
+                return true;
+            }
+        }
+
+        private bool findPistons()
+        {
+            List<IMyPistonBase> allPistons = null;
+            bool ret = false;
+            this.GridTerminalSystem.GetBlocksOfType(allPistons);
+
+            foreach(IMyPistonBase piston in allPistons)
+            {
+                if (!Me.CubeGrid.IsSameConstructAs(piston.CubeGrid))
                 {
                     continue;
                 }
-                else if (rotor.DisplayName.Contains("Flattener"))
+                else if (piston.DisplayName.Contains("Flattener"))
                 {
-                    ret = rotor;
-                    break;
+                    pistons.Add(piston);
+                    ret = true;
                 }
             }
 
             return ret;
+        }
+
+        private bool findDrills()
+        {
+            List<IMyShipDrill> allDrills = null;
+            bool ret = false;
+            this.GridTerminalSystem.GetBlocksOfType(allDrills);
+
+            foreach(IMyShipDrill drill in allDrills)
+            {
+                if (!Me.CubeGrid.IsSameConstructAs(drill.CubeGrid))
+                {
+                    continue;
+                }
+                else if (drill.DisplayName.Contains("Flattener"))
+                {
+                    drills.Add(drill);
+                    ret = true;
+                }
+            }
+
+            return true;
+        }
+
+        private float getPistonExtension()
+        {
+            float ret = 0;
+
+            foreach (IMyPistonBase piston in pistons)
+            {
+                ret += piston.CurrentPosition;
+            }
+
+            return ret;
+        }
+
+        private void activateDrills()
+        {
+            foreach (IMyShipDrill drill in drills)
+            {
+                drill.Enabled = true;
+            }
+        }
+
+        private float getPistonVelocity()
+        {
+            float ret = 0;
+
+            foreach (IMyPistonBase piston in pistons)
+            {
+                ret += piston.Velocity;
+            }
+
+            return ret;
+        }
+
+        private void setPistonVelocity(float vel)
+        {
+            foreach (IMyPistonBase piston in pistons)
+            {
+                piston.Velocity = vel;
+            }
+        }
+
+        private void initiateRotatingState()
+        {
+            rotor.TargetVelocityRPM = rotor.TargetVelocityRPM * -1;
+            state = FlatteningState.Rotating;
+        }
+
+        private void initiateExtendingState()
+        {
+
         }
     }
 }

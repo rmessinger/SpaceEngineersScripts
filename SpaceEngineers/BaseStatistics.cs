@@ -18,6 +18,7 @@ namespace Utilities
         ISet<IMyCargoContainer> cargoContainers;
         IDictionary<string, MyItemType> ingotTypes;
         System.Text.RegularExpressions.Regex maxInputRegex;
+        int milliToMegaScale = 1000000000;
 
         public BaseStatistics()
         {
@@ -68,11 +69,11 @@ namespace Utilities
                 // refactor into method
                 if (ironIngots != null)
                 {
-                    ironIngotCount += (float)ironIngots?.Amount.RawValue / 1000000000f;
+                    ironIngotCount += (float)ironIngots?.Amount.RawValue / milliToMegaScale;
                 }
                 if (cobaltIngots != null)
                 {
-                    cobaltIngotCount += (float)cobaltIngots?.Amount.RawValue / 1000000000f;
+                    cobaltIngotCount += (float)cobaltIngots?.Amount.RawValue / milliToMegaScale;
                 }
             }
 
@@ -89,11 +90,11 @@ namespace Utilities
                 }
                 if (ironIngots != null)
                 {
-                    ironIngotCount += (float)ironIngots?.Amount.RawValue / 1000000000f;
+                    ironIngotCount += (float)ironIngots?.Amount.RawValue / milliToMegaScale;
                 }
                 if (cobaltIngots != null)
                 {
-                    cobaltIngotCount += (float)cobaltIngots?.Amount.RawValue / 1000000000f;
+                    cobaltIngotCount += (float)cobaltIngots?.Amount.RawValue / milliToMegaScale;
                 }
             }
 
@@ -106,11 +107,11 @@ namespace Utilities
 
                 if (ironIngots != null)
                 {
-                    ironIngotCount += (float)ironIngots?.Amount.RawValue / 1000000000f;
+                    ironIngotCount += (float)ironIngots?.Amount.RawValue / milliToMegaScale;
                 }
                 if (cobaltIngots != null)
                 {
-                    cobaltIngotCount += (float)cobaltIngots?.Amount.RawValue / 1000000000f;
+                    cobaltIngotCount += (float)cobaltIngots?.Amount.RawValue / milliToMegaScale;
                 }
             }
 
