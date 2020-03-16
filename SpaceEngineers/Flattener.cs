@@ -26,6 +26,9 @@ namespace Utilities
         int maxAngle = 359;
         float startingExtension = 0;
 
+        // extend pistons by 1 meter each time rotor reaches limit
+        float extensionPerCycle = 1.0f;
+
         public Flattener()
         {
             Runtime.UpdateFrequency |= UpdateFrequency.Update10;
@@ -65,7 +68,7 @@ namespace Utilities
                 else if (getPistonVelocity() != 0)
                 {
                     // if the state is unknown and the pistons are moving, then sweet jesus stop it right now
-                    setPistonVelocity(0);
+                    stopAllPistons();
                     initiateRotatingState();
                 }
                 else
@@ -183,23 +186,38 @@ namespace Utilities
             return ret;
         }
 
-        private void setPistonVelocity(float vel)
+        private void stopAllPistons()
         {
             foreach (IMyPistonBase piston in pistons)
             {
-                piston.Velocity = vel;
+                piston.Velocity = 0;
             }
         }
 
         private void initiateRotatingState()
         {
+            stopAllPistons();
             rotor.TargetVelocityRPM = rotor.TargetVelocityRPM * -1;
             state = FlatteningState.Rotating;
         }
 
         private void initiateExtendingState()
         {
+            IMyPistonBase activePiston = null;
+            float currentExtension = 0;
 
+            // find a piston 
+            foreach (IMyPistonBase piston in pistons)
+            {
+                if (piston.CurrentPosition < piston.MaxLimit && activePiston == null)
+                {
+                    activePiston = piston;
+                }
+
+                currentExtension += piston.CurrentPosition;
+            }
+
+            startingExtension = currentExtension;
         }
     }
 }
