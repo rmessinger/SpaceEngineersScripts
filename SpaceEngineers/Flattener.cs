@@ -20,6 +20,7 @@ namespace Utilities
         IMyMotorAdvancedStator rotor = null;
         ISet<IMyPistonBase> pistons;
         ISet<IMyShipDrill> drills;
+        IMyPistonBase activePiston = null;
         FlatteningState state;
 
         int minAngle = 180;
@@ -84,12 +85,23 @@ namespace Utilities
                 // if the rotor has reached the target angle, start extending the pistons
                 if (rotor.TargetVelocityRPM > 0 && rotor.Angle >= maxAngle)
                 {
-
+                    initiateExtendingState();
                 }
             }
             else if (state == FlatteningState.Extending)
             {
                 // check current position vs target
+                if (getPistonExtension() >= startingExtension + extensionPerCycle)
+                {
+                    initiateRotatingState();
+                }
+                // check if the next piston in line needs to be activated
+                else if (activePiston.CurrentPosition >= activePiston.MaxLimit)
+                {
+                    activePiston = getFirstUnmaxedPiston();
+                    activePiston.Velocity = 0.1f;
+                    activePiston.Enabled = true;
+                }
             }
         }
 
@@ -203,21 +215,23 @@ namespace Utilities
 
         private void initiateExtendingState()
         {
-            IMyPistonBase activePiston = null;
-            float currentExtension = 0;
+            activePiston = getFirstUnmaxedPiston();
+            activePiston.Enabled = true;
+            activePiston.Velocity = 0.1f;
+            startingExtension = getPistonExtension();
+        }
 
-            // find a piston 
+        private IMyPistonBase getFirstUnmaxedPiston()
+        {
             foreach (IMyPistonBase piston in pistons)
             {
-                if (piston.CurrentPosition < piston.MaxLimit && activePiston == null)
+                if (piston.CurrentPosition < piston.MaxLimit)
                 {
-                    activePiston = piston;
+                    return piston;
                 }
-
-                currentExtension += piston.CurrentPosition;
             }
 
-            startingExtension = currentExtension;
+            return null;
         }
     }
 }
