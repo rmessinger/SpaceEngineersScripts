@@ -18,13 +18,13 @@ namespace Utilities
         }
 
         IMyMotorAdvancedStator rotor = null;
-        ISet<IMyPistonBase> pistons;
-        ISet<IMyShipDrill> drills;
+        ISet<IMyPistonBase> pistons = new HashSet<IMyPistonBase>();
+        ISet<IMyShipDrill> drills = new HashSet<IMyShipDrill>();
         IMyPistonBase activePiston = null;
-        FlatteningState state;
+        FlatteningState state = FlatteningState.Unknown;
 
-        int minAngle = 180;
-        int maxAngle = 359;
+        float minAngle = 3.14159f;
+        float maxAngle = 6.26573f;
         float startingExtension = 0;
 
         // extend pistons by 1 meter each time rotor reaches limit
@@ -43,7 +43,7 @@ namespace Utilities
                 return;
             }
 
-            if ((pistons == null && pistons.Count == 0) && !findPistons())
+            if ((pistons == null || pistons.Count == 0) && !findPistons())
             {
                 Echo("No pistons found");
                 return;
@@ -56,14 +56,16 @@ namespace Utilities
                 return;
             }
 
+
             // If state is unknown, well, HOW DID I GET HERE
             // AND THE DAYS GO BY
             if (state == FlatteningState.Unknown)
             {
+                Echo("State is unknown");
                 // determine what angle the rotor is turning
                 // positive vel rpm means it's returning to home
                 // hey, don't be ignorant. Negative vel can mean home too
-                if (rotor.Angle <= minAngle || rotor.Angle >= maxAngle)
+                if (rotor.Angle > minAngle && rotor.Angle < maxAngle)
                 {
                 }
                 else if (getPistonVelocity() != 0)
@@ -76,7 +78,7 @@ namespace Utilities
                 {
                     // mid-point angle means rotating state
                     // set it and forget it my dude
-                    state = FlatteningState.Rotating;
+                    initiateRotatingState();
                 }
 
             }
@@ -109,9 +111,8 @@ namespace Utilities
         {
             IMyTerminalBlock block = GridTerminalSystem.GetBlockWithName("Flattener Rotor");
             IMyMotorAdvancedStator rotorStatus = block as IMyMotorAdvancedStator;
-            IMyMotorAdvancedRotor rotorControl = block as IMyMotorAdvancedRotor;
 
-            if (rotorStatus == null || rotorControl == null)
+            if (rotorStatus == null)
             {
                 return false;
             }
@@ -124,9 +125,14 @@ namespace Utilities
 
         private bool findPistons()
         {
-            List<IMyPistonBase> allPistons = null;
+            List<IMyPistonBase> allPistons = new List<IMyPistonBase>();
             bool ret = false;
-            this.GridTerminalSystem.GetBlocksOfType(allPistons);
+            this.GridTerminalSystem.GetBlocksOfType<IMyPistonBase>(allPistons);
+
+            if (allPistons == null || allPistons.Count == 0)
+            {
+                return false;
+            }
 
             foreach(IMyPistonBase piston in allPistons)
             {
@@ -134,7 +140,7 @@ namespace Utilities
                 {
                     continue;
                 }
-                else if (piston.DisplayName.Contains("Flattener"))
+                else if (piston.CustomName.Contains("Flattener"))
                 {
                     pistons.Add(piston);
                     ret = true;
@@ -146,7 +152,7 @@ namespace Utilities
 
         private bool findDrills()
         {
-            List<IMyShipDrill> allDrills = null;
+            List<IMyShipDrill> allDrills = new List<IMyShipDrill>();
             bool ret = false;
             this.GridTerminalSystem.GetBlocksOfType(allDrills);
 
@@ -156,14 +162,14 @@ namespace Utilities
                 {
                     continue;
                 }
-                else if (drill.DisplayName.Contains("Flattener"))
+                else if (drill.Name.Contains("Flattener"))
                 {
                     drills.Add(drill);
                     ret = true;
                 }
             }
 
-            return true;
+            return ret;
         }
 
         private float getPistonExtension()
