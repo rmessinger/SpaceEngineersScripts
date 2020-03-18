@@ -23,7 +23,7 @@ namespace Utilities
         IMyPistonBase activePiston = null;
         FlatteningState state = FlatteningState.Unknown;
 
-        float minAngle = 3.14159f;
+        float minAngle = 3.147f;
         float maxAngle = 6.26573f;
         float startingExtension = 0;
 
@@ -84,14 +84,19 @@ namespace Utilities
             }
             else if (state == FlatteningState.Rotating)
             {
+                Echo("Rotating: angle = " + rotor.Angle);
                 // if the rotor has reached the target angle, start extending the pistons
-                if (rotor.TargetVelocityRPM > 0 && rotor.Angle >= maxAngle)
+                // TODO: Only initiate extending state if the rotor is still rotating toward the reached destination
+                if ((rotor.Angle >= maxAngle && rotor.TargetVelocityRPM > 0) 
+                    || (rotor.Angle <= minAngle && rotor.TargetVelocityRPM < 0))
                 {
+                    Echo("Reached target");
                     initiateExtendingState();
                 }
             }
             else if (state == FlatteningState.Extending)
             {
+                Echo("Extending: " + getPistonExtension());
                 // check current position vs target
                 if (getPistonExtension() >= startingExtension + extensionPerCycle)
                 {
@@ -225,6 +230,7 @@ namespace Utilities
             activePiston.Enabled = true;
             activePiston.Velocity = 0.1f;
             startingExtension = getPistonExtension();
+            state = FlatteningState.Extending;
         }
 
         private IMyPistonBase getFirstUnmaxedPiston()
