@@ -56,7 +56,6 @@ namespace Utilities
                 return;
             }
 
-
             // If state is unknown, well, HOW DID I GET HERE
             // AND THE DAYS GO BY
             if (state == FlatteningState.Unknown)
