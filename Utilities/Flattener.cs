@@ -17,11 +17,22 @@ namespace Utilities
             Rotating
         }
 
+        enum RunMode
+        {
+            None,
+            Flattening,
+            Diagnostics
+        }
+
         IMyMotorAdvancedStator rotor = null;
         ISet<IMyPistonBase> pistons = new HashSet<IMyPistonBase>();
         ISet<IMyShipDrill> drills = new HashSet<IMyShipDrill>();
         IMyPistonBase activePiston = null;
+        IMyPistonBase flattenerPistonPrime = null;
+        IMyTextPanel diagDisplay = null;
+
         FlatteningState state = FlatteningState.Unknown;
+        RunMode mode = RunMode.None;
 
         float minAngle = 3.147f;
         float maxAngle = 6.26573f;
@@ -37,23 +48,88 @@ namespace Utilities
 
         public void Main(string argument, UpdateType updateSource)
         {
+            bool allComponentsInitialized = initComponents();
+            if (argument.Contains("flatten") && allComponentsInitialized)
+            {
+                mode = RunMode.Flattening;
+            }
+
+            if (argument.Contains("diag"))
+            {
+                if (diagDisplay == null && !initDiagPanel())
+                {
+                    Echo("No diag panel found");
+                    return;
+                }
+
+                mode = RunMode.Diagnostics;
+            }
+
+            if (mode == RunMode.Flattening)
+            {
+                flatten();
+            }
+            else if (mode == RunMode.Diagnostics)
+            {
+                outputDiagnostics();
+            }
+        }
+
+        private void outputDiagnostics()
+        {
+            Matrix matrix;
+            flattenerPistonPrime.Orientation.GetMatrix(out matrix);
+            diagDisplay.WriteText(matrix.ToString());
+        }
+
+        private bool initDiagPanel()
+        {
+            bool found = false;
+            List<IMyTextPanel> allPanels = new List<IMyTextPanel>();
+            GridTerminalSystem.GetBlocksOfType<IMyTextPanel>(allPanels);
+            foreach (IMyTextPanel panel in allPanels)
+            {
+                if (panel.CustomName.Contains("Flattener Diag"))
+                {
+                    diagDisplay = panel;
+                    diagDisplay.ContentType = ContentType.TEXT_AND_IMAGE;
+                    diagDisplay.BackgroundColor = new Color(0f);
+                    found = true;
+                }
+            }
+
+            return found;
+        }
+
+        private bool initComponents()
+        {
+            bool allFound = true;
             if (rotor == null && !findRotor())
             {
                 Echo("No rotor found");
-                return;
+                allFound = false;
             }
 
             if ((pistons == null || pistons.Count == 0) && !findPistons())
             {
                 Echo("No pistons found");
-                return;
+                allFound = false;
             }
 
+            if ((drills == null || drills.Count == 0) && !findDrills())
+            {
+                Echo("No drills found");
+            }
+
+            return allFound;
+        }
+
+        private void flatten()
+        {
             // Is the motor in action?
             if (rotor.RotorLock || !rotor.IsWorking || rotor.TargetVelocityRPM == 0)
             {
                 Echo("ROTOR SEEMS DISABLED I GUESS?!");
-                return;
             }
 
             // If state is unknown, well, HOW DID I GET HERE
@@ -86,7 +162,7 @@ namespace Utilities
                 Echo("Rotating: angle = " + rotor.Angle);
                 // if the rotor has reached the target angle, start extending the pistons
                 // TODO: Only initiate extending state if the rotor is still rotating toward the reached destination
-                if ((rotor.Angle >= maxAngle && rotor.TargetVelocityRPM > 0) 
+                if ((rotor.Angle >= maxAngle && rotor.TargetVelocityRPM > 0)
                     || (rotor.Angle <= minAngle && rotor.TargetVelocityRPM < 0))
                 {
                     Echo("Reached target");
@@ -140,14 +216,16 @@ namespace Utilities
 
             foreach(IMyPistonBase piston in allPistons)
             {
-                if (!Me.CubeGrid.IsSameConstructAs(piston.CubeGrid))
-                {
-                    continue;
-                }
-                else if (piston.CustomName.Contains("Flattener"))
+                if (piston.CustomName.Contains("Flattener"))
                 {
                     pistons.Add(piston);
+                    Echo("Found piston " + piston.CustomName);
+
                     ret = true;
+                    if (flattenerPistonPrime == null && piston.CustomName.Contains("Flattener Piston Prime"))
+                    {
+                        flattenerPistonPrime = piston;
+                    }
                 }
             }
 

@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.28922.388
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Utilities", "SpaceEngineers\Utilities.csproj", "{16700249-D0FB-4294-9B26-B47B6BFE1A2D}"
+Project("{888888A0-9F3D-457C-B088-3A5042F75D52}") = "Exporter", "Exporter\Exporter.pyproj", "{35AF1025-47D1-4A31-B001-1FFE15D654D3}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Utilities", "Utilities\Utilities.csproj", "{215353F5-235D-485B-BBD3-F996DD235FD1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,10 +13,12 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{16700249-D0FB-4294-9B26-B47B6BFE1A2D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{16700249-D0FB-4294-9B26-B47B6BFE1A2D}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{16700249-D0FB-4294-9B26-B47B6BFE1A2D}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{16700249-D0FB-4294-9B26-B47B6BFE1A2D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{35AF1025-47D1-4A31-B001-1FFE15D654D3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{35AF1025-47D1-4A31-B001-1FFE15D654D3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{215353F5-235D-485B-BBD3-F996DD235FD1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{215353F5-235D-485B-BBD3-F996DD235FD1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{215353F5-235D-485B-BBD3-F996DD235FD1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{215353F5-235D-485B-BBD3-F996DD235FD1}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
