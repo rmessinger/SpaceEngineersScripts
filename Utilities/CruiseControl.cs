@@ -10,54 +10,41 @@ namespace SpaceEngineers.Utilities
 {
     public class CruiseControl : MyGridProgram
     {
-        ISet<IMyThrust> forwardThrusters = new HashSet<IMyThrust>();
-        ISet<IMyThrust> reverseThrusters = new HashSet<IMyThrust>();
-        ISet<IMyShipConnector> shipConnectors = new HashSet<IMyShipConnector>();
-        IMyCubeGrid shipGrid;
-        IMyCockpit shipCockpit;
+        ISet<IMyThrust> forwardThrusters = null;
+        ISet<IMyThrust> reverseThrusters = null;
+        ISet<IMyShipConnector> shipConnectors = null;
+        IMyCubeGrid shipGrid = null;
+        IMyCockpit shipCockpit = null;
 
         System.DateTime lastTime;
         Vector3D lastPosition;
-        float cruiseTarget;
-        float minSpeed;
-        float lowerCruiseBound;
-        bool enabled;
+        float cruiseTarget = 105;
+        float minSpeed = 75;
+        float lowerCruiseBound = 95;
+        bool enabled = false;
 
         public CruiseControl()
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update10;
-            shipGrid = Me.CubeGrid;
-            cruiseTarget = 105;
-            lowerCruiseBound = 95;
-            minSpeed = 75;
-            enabled = false;
-
-            List<IMyShipConnector> allConnectors = new List<IMyShipConnector>();
-            GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(allConnectors);
-            foreach(IMyShipConnector connector in allConnectors)
-            {
-                if (connector.CubeGrid.IsSameConstructAs(shipGrid))
-                {
-                    shipConnectors.Add(connector);
-                }
-            }
-
-            List<IMyCockpit> allCockpits = new List<IMyCockpit>();
-            GridTerminalSystem.GetBlocksOfType<IMyCockpit>(allCockpits);
-            foreach(IMyCockpit cockpit in allCockpits)
-            {
-                if (cockpit.CubeGrid.IsSameConstructAs(shipGrid))
-                {
-                    this.shipCockpit = cockpit;
-                    break;
-                }
-            }
-
-            InitializeThrusters();
         }
 
         public void Main(string argument, UpdateType updateSource)
         {
+            if (shipConnectors == null)
+            {
+                InitializeConnector();
+            }
+
+            if (shipCockpit == null)
+            {
+                InitializeCockpit();
+            }
+
+            if (forwardThrusters == null || reverseThrusters == null)
+            {
+                InitializeThrusters();
+            }
+
             if (ConnectorsLocked(shipConnectors))
             {
                 return;
@@ -139,6 +126,35 @@ namespace SpaceEngineers.Utilities
                         // TODO filter hydrogen thrusters when in gravity well
                         reverseThrusters.Add(thruster);
                     }
+                }
+            }
+        }
+        
+        private void InitializeCockpit()
+        {
+            List<IMyCockpit> allCockpits = new List<IMyCockpit>();
+            GridTerminalSystem.GetBlocksOfType<IMyCockpit>(allCockpits);
+            foreach (IMyCockpit cockpit in allCockpits)
+            {
+                if (cockpit.CubeGrid.IsSameConstructAs(shipGrid))
+                {
+                    this.shipCockpit = cockpit;
+                    break;
+                }
+            }
+
+            return;
+        }
+
+        private void InitializeConnector()
+        {
+            List<IMyShipConnector> allConnectors = new List<IMyShipConnector>();
+            GridTerminalSystem.GetBlocksOfType<IMyShipConnector>(allConnectors);
+            foreach (IMyShipConnector connector in allConnectors)
+            {
+                if (connector.CubeGrid.IsSameConstructAs(shipGrid))
+                {
+                    shipConnectors.Add(connector);
                 }
             }
         }
