@@ -21,7 +21,6 @@ namespace Utilities
         {
             None,
             Flattening,
-            Diagnostics
         }
 
         IMyMotorAdvancedStator rotor = null;
@@ -29,7 +28,6 @@ namespace Utilities
         ISet<IMyShipDrill> drills = new HashSet<IMyShipDrill>();
         IMyPistonBase activePiston = null;
         IMyPistonBase flattenerPistonPrime = null;
-        IMyTextPanel diagDisplay = null;
 
         FlatteningState state = FlatteningState.Unknown;
         RunMode mode = RunMode.None;
@@ -54,51 +52,10 @@ namespace Utilities
                 mode = RunMode.Flattening;
             }
 
-            if (argument.Contains("diag"))
-            {
-                if (diagDisplay == null && !initDiagPanel())
-                {
-                    Echo("No diag panel found");
-                    return;
-                }
-
-                mode = RunMode.Diagnostics;
-            }
-
             if (mode == RunMode.Flattening)
             {
                 flatten();
             }
-            else if (mode == RunMode.Diagnostics)
-            {
-                outputDiagnostics();
-            }
-        }
-
-        private void outputDiagnostics()
-        {
-            Matrix matrix;
-            flattenerPistonPrime.Orientation.GetMatrix(out matrix);
-            diagDisplay.WriteText(matrix.ToString());
-        }
-
-        private bool initDiagPanel()
-        {
-            bool found = false;
-            List<IMyTextPanel> allPanels = new List<IMyTextPanel>();
-            GridTerminalSystem.GetBlocksOfType<IMyTextPanel>(allPanels);
-            foreach (IMyTextPanel panel in allPanels)
-            {
-                if (panel.CustomName.Contains("Flattener Diag"))
-                {
-                    diagDisplay = panel;
-                    diagDisplay.ContentType = ContentType.TEXT_AND_IMAGE;
-                    diagDisplay.BackgroundColor = new Color(0f);
-                    found = true;
-                }
-            }
-
-            return found;
         }
 
         private bool initComponents()
