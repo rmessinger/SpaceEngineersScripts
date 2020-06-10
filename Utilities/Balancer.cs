@@ -8,27 +8,20 @@ using VRageMath;
 
 namespace Utilities
 {
-    public class Diagnostics : MyGridProgram
+    public class Balancer : MyGridProgram
     {
         IMyMotorAdvancedStator pivot = null;
         IMyMotorSuspension leftWheel = null;
         IMyMotorSuspension rightWheel = null;
         IDictionary<IMyEntity, Vector3D> lastReportedPosition = null;
 
-        IMyTextPanel diagDisplay = null;
-
-        public Diagnostics()
+        public Balancer()
         {
             Runtime.UpdateFrequency |= UpdateFrequency.Update100;
         }
 
         public void Main(string argument, UpdateType updateSource)
         {
-            if (diagDisplay == null)
-            {
-                initDiagPanel();
-            }
-
             if (pivot == null)
             {
                 initPivot();
@@ -72,32 +65,6 @@ namespace Utilities
             // output.Append(leftWheel.GetPosition().ToString().Replace(' ', '\n') + "\n\n");
             // output.Append(rightWheel.CustomName + "\n");
             // output.Append(rightWheel.GetPosition().ToString().Replace(' ', '\n') + "\n\n");
-            outputDiagnostics(output.ToString());
-        }
-
-        private void outputDiagnostics(string text)
-        {
-            diagDisplay.WriteText(text);
-        }
-
-        private bool initDiagPanel()
-        {
-            bool found = false;
-            List<IMyTextPanel> allPanels = new List<IMyTextPanel>();
-            GridTerminalSystem.GetBlocksOfType<IMyTextPanel>(allPanels);
-            foreach (IMyTextPanel panel in allPanels)
-            {
-                if (panel.CustomName.Contains("Diagnostics Panel 1"))
-                {
-                    Echo(panel.CustomName);
-                    diagDisplay = panel;
-                    diagDisplay.ContentType = ContentType.TEXT_AND_IMAGE;
-                    diagDisplay.BackgroundColor = new Color(0f);
-                    found = true;
-                }
-            }
-
-            return found;
         }
 
         private bool initPivot()
@@ -119,7 +86,7 @@ namespace Utilities
         private bool initWheels()
         {
             IMyTerminalBlock block = GridTerminalSystem.GetBlockWithName("Balancer Wheel Left");
-            IMyMotorSuspension leftWheel  = block as IMyMotorSuspension;
+            IMyMotorSuspension leftWheel = block as IMyMotorSuspension;
             block = GridTerminalSystem.GetBlockWithName("Balancer Wheel Right");
             IMyMotorSuspension rightWheel = block as IMyMotorSuspension;
 
