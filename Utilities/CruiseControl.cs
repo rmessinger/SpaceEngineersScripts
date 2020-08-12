@@ -16,7 +16,7 @@ namespace SpaceEngineers.Utilities
         IMyCubeGrid shipGrid = null;
         IMyCockpit shipCockpit = null;
 
-        System.DateTime lastTime;
+        DateTime lastTime;
         Vector3D lastPosition;
         float cruiseTarget = 105;
         float minSpeed = 75;

@@ -12,14 +12,18 @@ namespace Utilities
     {
         IMyCubeGrid baseGrid;
         IMyTextPanel inventoryDisplay;
-        IMyTextPanel capacityDisplay;
         ISet<IMyRefinery> refineries;
         ISet<IMyAssembler> assemblers;
         ISet<IMyCargoContainer> cargoContainers;
-        IDictionary<string, MyItemType> ingotTypes;
+        IDictionary<string, MyItemType> itemTypes;
         System.Text.RegularExpressions.Regex maxInputRegex;
         int milliToMegaScale = 1000000000;
+        int lastArgHash = 0;
+        string panelName = string.Empty;
 
+        // Arguments separated by commas
+        // Display name
+        // Components
         public BaseStatistics()
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update100;
@@ -34,37 +38,59 @@ namespace Utilities
                     inventoryDisplay.ContentType = ContentType.TEXT_AND_IMAGE;
                     inventoryDisplay.BackgroundColor = new Color(0f);
                 }
-                if (panel.CustomName == "Power Display")
-                {
-                    capacityDisplay = panel;
-                    capacityDisplay.ContentType = ContentType.TEXT_AND_IMAGE;
-                    capacityDisplay.BackgroundColor = new Color(0f);
-                    break;
-                }
             }
 
             cargoContainers = FindCargoContainers();
             refineries = FindRefineries();
             assemblers = FindAssemblers();
 
-            ingotTypes = new Dictionary<string, MyItemType>();
-            ingotTypes.Add("Iron", MyItemType.MakeIngot("Iron"));
-            ingotTypes.Add("Cobalt", MyItemType.MakeIngot("Cobalt"));
+            itemTypes = new Dictionary<string, MyItemType>();
+            itemTypes.Add("Iron", MyItemType.MakeIngot("Iron"));
+            itemTypes.Add("Cobalt", MyItemType.MakeIngot("Cobalt"));
         }
 
         public void Main(string argument, UpdateType updateSource)
         {
-
             float ironIngotCount = 0;
             float cobaltIngotCount = 0;
-            string refineryData = string.Empty;
+
+            int argHash = argument.GetHashCode();
+
+            // New arguments, parse 'em
+            if (argHash != lastArgHash)
+            {
+                int index = 0;
+                foreach (string rawArg in argument.Split(','))
+                {
+                    string arg = rawArg.Trim();
+                    if (index == 0)
+                    {
+                        panelName = arg;
+                    }
+                    else
+                    {
+                        StringBuilder itemName = new StringBuilder();
+                        // hahah this is stupid
+                        // but I will not enforce case-sensitivity
+                        if (arg.ToLower().Contains("ingot"))
+                        {
+                            arg.Replace("ingot", string.Empty);
+                            itemName.Append(arg[0].ToString().ToUpper());
+                            itemName.Append(arg.Substring(1).ToLower());
+                        }
+                    }
+
+                    index++;
+                }
+            }
+
             // TODO this shouldn't be 3 loops... they all have base types don't they
             foreach (IMyCargoContainer container in cargoContainers)
             {
                 // TODO cache these
                 IMyInventory containerInventory = container.GetInventory();
-                MyInventoryItem? ironIngots = containerInventory.FindItem(ingotTypes["Iron"]);
-                MyInventoryItem? cobaltIngots = containerInventory.FindItem(ingotTypes["Cobalt"]);
+                MyInventoryItem? ironIngots = containerInventory.FindItem(itemTypes["Iron"]);
+                MyInventoryItem? cobaltIngots = containerInventory.FindItem(itemTypes["Cobalt"]);
 
                 // refactor into method
                 if (ironIngots != null)
@@ -81,13 +107,9 @@ namespace Utilities
             {
                 // TODO cache these
                 IMyInventory refineryInventory = refinery.OutputInventory;
-                MyInventoryItem? ironIngots = refineryInventory.FindItem(ingotTypes["Iron"]);
-                MyInventoryItem? cobaltIngots = refineryInventory.FindItem(ingotTypes["Cobalt"]);
+                MyInventoryItem? ironIngots = refineryInventory.FindItem(itemTypes["Iron"]);
+                MyInventoryItem? cobaltIngots = refineryInventory.FindItem(itemTypes["Cobalt"]);
 
-                if (refineryData == string.Empty)
-                {
-                    refineryData = refinery.DetailedInfo;
-                }
                 if (ironIngots != null)
                 {
                     ironIngotCount += (float)ironIngots?.Amount.RawValue / milliToMegaScale;
@@ -102,8 +124,8 @@ namespace Utilities
             {
                 // TODO cache these
                 IMyInventory assemblerInventory = assembler.InputInventory;
-                MyInventoryItem? ironIngots = assemblerInventory.FindItem(ingotTypes["Iron"]);
-                MyInventoryItem? cobaltIngots = assemblerInventory.FindItem(ingotTypes["Cobalt"]);
+                MyInventoryItem? ironIngots = assemblerInventory.FindItem(itemTypes["Iron"]);
+                MyInventoryItem? cobaltIngots = assemblerInventory.FindItem(itemTypes["Cobalt"]);
 
                 if (ironIngots != null)
                 {
@@ -117,7 +139,6 @@ namespace Utilities
 
             inventoryDisplay.WriteText("Iron Ingots: " + Math.Round(ironIngotCount, 3) + "k\n");
             inventoryDisplay.WriteText("Cobalt Ingots: " + Math.Round(cobaltIngotCount, 3) + "k", true);
-            capacityDisplay.WriteText(refineryData);
         }
 
         // TODO condense these into one

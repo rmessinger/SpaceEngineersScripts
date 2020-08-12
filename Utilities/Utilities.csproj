@@ -24,7 +24,7 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="python c:\dev\SpaceEngineersScripts\Exporter\Exporter.py c:\dev\SpaceEngineersScripts\Utilities\Diagnostics.cs" />
+    <Exec Command="python c:\dev\SpaceEngineersScripts\Exporter\Exporter.py c:\dev\SpaceEngineersScripts\Utilities\AngleAdjuster.cs" />
   </Target>
 
 </Project>

@@ -48,9 +48,9 @@ namespace Utilities
             float meanHeight = (leftWheel.Height + rightWheel.Height) / 2;
             output.Append("Height: " + meanHeight + "\n\n");
 
-            if (pivot.Angle < 0.00 || pivot.Angle > 6.27)
+            if (pivot.Angle < .05 || pivot.Angle > 6.2)
             {
-                if (pivot.Angle > 0 && pivot.Angle < 3)
+                if (pivot.Angle > 0 && pivot.Angle < 3.14)
                 {
                     leftWheel.Height -= .01f;
                     rightWheel.Height -= .01f;
