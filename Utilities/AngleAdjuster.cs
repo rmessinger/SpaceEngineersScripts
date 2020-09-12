@@ -12,14 +12,14 @@ namespace Utilities
     {
         IMyTextSurface panel = null;
         List<IMyMotorAdvancedStator> angleHinges = null;
-        int numHinges = 3;
         string hingeKey = "Angle Hinge";
         string entityKey = "Rld";
         float radiansPerDegree = 0.0174533f;
+        float epsilon = .2f;
 
         public AngleAdjuster()
         {
-            Runtime.UpdateFrequency = UpdateFrequency.Once;
+            Runtime.UpdateFrequency = UpdateFrequency.Update100;
         }
 
         public void Main(string argument, UpdateType updateSource)
@@ -41,15 +41,46 @@ namespace Utilities
             {
                 StringBuilder output = new StringBuilder();
                 int count = 0;
+                bool allAtTarget = true;
                 angleHinges.ForEach(i => 
                 {
-                    output.Append(i.CustomName + ": (" + i.Angle / radiansPerDegree + ") ");
+                    float angleDegrees = i.Angle / radiansPerDegree;
+                    float angleTarget = 0;
+
+                    if (i.TargetVelocityRPM > 0)
+                    {
+                        angleTarget = i.UpperLimitDeg;
+                    }
+                    else if (i.TargetVelocityRPM < 0)
+                    {
+                        angleTarget = i.LowerLimitDeg;
+                    }
+
+
+                    float delta = Math.Abs(angleDegrees - angleTarget);
+                    if (delta > epsilon)
+                    {
+                        allAtTarget = false;
+                    }
+
+                    output.Append($"{i.CustomName} : {Math.Round(angleDegrees, 3)} / {Math.Round(angleTarget, 3)} - {delta}");
+                    
                     count++;
                     if (count < angleHinges.Count)
                     {
                         output.Append("\n");
                     }
                 });
+
+                if (allAtTarget)
+                {
+                    angleHinges.ForEach(i =>
+                    {
+                        i.TargetVelocityRPM *= -1;
+                    });
+                }
+
+
                 panel.WriteText(output.ToString());
             }
         }

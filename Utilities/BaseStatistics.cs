@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 using Sandbox.ModAPI.Ingame;
+using VRage;
 using VRage.Game.GUI.TextPanel;
 using VRage.Game.ModAPI.Ingame;
 using VRageMath;
@@ -11,15 +12,15 @@ namespace Utilities
     public class BaseStatistics : MyGridProgram
     {
         IMyCubeGrid baseGrid;
-        IMyTextPanel inventoryDisplay;
+        IDictionary<int, IMyTextPanel> inventoryDisplays;
         ISet<IMyRefinery> refineries;
         ISet<IMyAssembler> assemblers;
         ISet<IMyCargoContainer> cargoContainers;
         IDictionary<string, MyItemType> itemTypes;
-        System.Text.RegularExpressions.Regex maxInputRegex;
         int milliToMegaScale = 1000000000;
         int lastArgHash = 0;
         string panelName = string.Empty;
+        int maxLines = 17;
 
         // Arguments separated by commas
         // Display name
@@ -30,13 +31,15 @@ namespace Utilities
             baseGrid = Me.CubeGrid;
             List<IMyTextPanel> allPanels = new List<IMyTextPanel>();
             GridTerminalSystem.GetBlocksOfType<IMyTextPanel>(allPanels);
+            inventoryDisplays = new Dictionary<int, IMyTextPanel>();
             foreach (IMyTextPanel panel in allPanels)
             {
-                if (panel.CustomName == "Inventory Display")
+                if (panel.CustomName.Contains("Inventory Display"))
                 {
-                    inventoryDisplay = panel;
-                    inventoryDisplay.ContentType = ContentType.TEXT_AND_IMAGE;
-                    inventoryDisplay.BackgroundColor = new Color(0f);
+                    int panelIndex = int.Parse(panel.CustomName[panel.CustomName.Length - 1].ToString());
+                    panel.ContentType = ContentType.TEXT_AND_IMAGE;
+                    panel.BackgroundColor = new Color(0f);
+                    inventoryDisplays.Add(panelIndex, panel);
                 }
             }
 
@@ -51,13 +54,13 @@ namespace Utilities
 
         public void Main(string argument, UpdateType updateSource)
         {
-            float ironIngotCount = 0;
-            float cobaltIngotCount = 0;
+            DateTime start = DateTime.Now;
+            MyFixedPoint currentVolume = 0;
+            MyFixedPoint maxVolume = 0;
 
             int argHash = argument.GetHashCode();
-
             // New arguments, parse 'em
-            if (argHash != lastArgHash)
+            if (argument != string.Empty && argHash != lastArgHash)
             {
                 int index = 0;
                 foreach (string rawArg in argument.Split(','))
@@ -84,61 +87,71 @@ namespace Utilities
                 }
             }
 
+            
+            IDictionary<string, MyFixedPoint> allItems = new Dictionary<string, MyFixedPoint>();
+            List<IMyInventory> allInventories = new List<IMyInventory>();
+
             // TODO this shouldn't be 3 loops... they all have base types don't they
             foreach (IMyCargoContainer container in cargoContainers)
             {
-                // TODO cache these
-                IMyInventory containerInventory = container.GetInventory();
-                MyInventoryItem? ironIngots = containerInventory.FindItem(itemTypes["Iron"]);
-                MyInventoryItem? cobaltIngots = containerInventory.FindItem(itemTypes["Cobalt"]);
-
-                // refactor into method
-                if (ironIngots != null)
-                {
-                    ironIngotCount += (float)ironIngots?.Amount.RawValue / milliToMegaScale;
-                }
-                if (cobaltIngots != null)
-                {
-                    cobaltIngotCount += (float)cobaltIngots?.Amount.RawValue / milliToMegaScale;
-                }
+                IMyInventory inventory = container.GetInventory();
+                currentVolume += inventory.CurrentVolume;
+                maxVolume += inventory.MaxVolume;
+                allInventories.Add(inventory);
             }
 
             foreach (IMyRefinery refinery in refineries)
             {
-                // TODO cache these
-                IMyInventory refineryInventory = refinery.OutputInventory;
-                MyInventoryItem? ironIngots = refineryInventory.FindItem(itemTypes["Iron"]);
-                MyInventoryItem? cobaltIngots = refineryInventory.FindItem(itemTypes["Cobalt"]);
-
-                if (ironIngots != null)
-                {
-                    ironIngotCount += (float)ironIngots?.Amount.RawValue / milliToMegaScale;
-                }
-                if (cobaltIngots != null)
-                {
-                    cobaltIngotCount += (float)cobaltIngots?.Amount.RawValue / milliToMegaScale;
-                }
+                allInventories.Add(refinery.InputInventory);
+                allInventories.Add(refinery.OutputInventory);
             }
 
             foreach (IMyAssembler assembler in assemblers)
             {
-                // TODO cache these
-                IMyInventory assemblerInventory = assembler.InputInventory;
-                MyInventoryItem? ironIngots = assemblerInventory.FindItem(itemTypes["Iron"]);
-                MyInventoryItem? cobaltIngots = assemblerInventory.FindItem(itemTypes["Cobalt"]);
+                allInventories.Add(assembler.InputInventory);
+                allInventories.Add(assembler.OutputInventory);
+            }
 
-                if (ironIngots != null)
+            foreach (IMyInventory inventory in allInventories)
+            {
+                List<MyInventoryItem> containerItems = new List<MyInventoryItem>();
+                inventory.GetItems(containerItems);
+                foreach (var item in containerItems)
                 {
-                    ironIngotCount += (float)ironIngots?.Amount.RawValue / milliToMegaScale;
-                }
-                if (cobaltIngots != null)
-                {
-                    cobaltIngotCount += (float)cobaltIngots?.Amount.RawValue / milliToMegaScale;
+                    MyFixedPoint startingAmount = 0;
+                    allItems.TryGetValue(item.Type.ToString(), out startingAmount);
+
+                    allItems[item.Type.ToString()] = startingAmount + item.Amount;
                 }
             }
 
-            inventoryDisplay.WriteText("Iron Ingots: " + Math.Round(ironIngotCount, 3) + "k\n");
-            inventoryDisplay.WriteText("Cobalt Ingots: " + Math.Round(cobaltIngotCount, 3) + "k", true);
+            int linesWritten = 1;
+            int currentPanelIndex = 1;
+            IMyTextPanel currentPanel = inventoryDisplays[currentPanelIndex];
+            SortedDictionary<string, MyFixedPoint> sortedItems = new SortedDictionary<string, MyFixedPoint>(allItems);
+            // ironIngotCount += (float)ironIngots?.Amount.RawValue / milliToMegaScale;
+            float utilization = ((float)currentVolume.RawValue / (float)maxVolume.RawValue) * 100;
+            // currentPanel.WriteText($"Utilization: {currentVolume.RawValue} / {maxVolume.RawValue}\n", false);
+            currentPanel.WriteText($"Utilization: {Math.Round(utilization, 3)}%\n", false);
+
+            foreach (var item in sortedItems)
+            {
+                string[] itemFullName = item.Key.Split('/');
+
+                currentPanel.WriteText(itemFullName[itemFullName.Length - 1] + ": " + item.Value + "\n", linesWritten > 0);
+                linesWritten++;
+                
+                if (linesWritten >= maxLines)
+                {
+                    linesWritten = 0;
+                    currentPanelIndex++;
+                    currentPanel = inventoryDisplays[currentPanelIndex];
+                }
+            }
+
+            DateTime end = DateTime.Now;
+            TimeSpan duration = end - start;
+            Echo(duration.TotalMilliseconds+ "ms");
         }
 
         // TODO condense these into one
